@@ -140,8 +140,26 @@ function initThresholdUI(){
 const AUTO_REFRESH_MS = 60 * 1000;
 let autoEnabled = JSON.parse(localStorage.getItem("siamp_auto") || "true");
 let __autoTimer = null;
-function startAuto(){ if(__autoTimer) clearInterval(__autoTimer); if(!autoEnabled) return; __autoTimer = setInterval(()=>{ try{ loadData(); }catch(e){ console.warn("auto-refresh error", e);} }, AUTO_REFRESH_MS);} 
-function updateAutoBtn(){ const b=document.getElementById("btnAuto"); if(!b) return; b.textContent = autoEnabled ? "Auto: ON" : "Auto: OFF"; }
+let lastLoadTs = 0; // timestamp del último loadData()
+let lastSig = localStorage.getItem('siamp_csv_sig') || null;
+function startAuto(){
+  if(__autoTimer) clearInterval(__autoTimer);
+  if(!autoEnabled) { updateAutoBtn(); return; }
+  updateAutoBtn();
+  // Cada 15s, intenta detectar cambios rápidos; si no, recarga duro cada 60s
+  __autoTimer = setInterval(async () => {
+    try{
+      const since = Date.now() - lastLoadTs;
+      if(since >= AUTO_REFRESH_MS){
+        loadData();
+      } else {
+        // Si hay cambio detectado antes del minuto, recarga de inmediato
+        await pingForChange();
+      }
+    }catch(e){ console.warn('smart auto error', e); }
+  }, 15000);
+}catch(e){ console.warn("auto-refresh error", e);} }, AUTO_REFRESH_MS);} 
+function updateAutoBtn(){ const b=document.getElementById("btnAuto"); if(!b) return; b.textContent = autoEnabled ? "Auto (1 min): ON" : "Auto (1 min): OFF"; }
 document.addEventListener("DOMContentLoaded", () => {
   // Auto-actualización con ON/OFF
   startAuto();
@@ -189,7 +207,7 @@ function loadData(){
   const __url = CONFIG.SHEET_URL + (CONFIG.SHEET_URL.includes("?") ? "&" : "?") + "cb=" + Date.now();
   Papa.parse(__url, {
     download:true, header:true, dynamicTyping:false, skipEmptyLines:true,
-    complete: (res)=>{
+    complete: (res) => {
       rawRows = res.data.map(cleanRow).filter(Boolean);
       rawRows.sort((a,b)=> a.date - b.date);
       filteredRows = rawRows.slice();
@@ -198,7 +216,9 @@ function loadData(){
       // aplicar filtros cargados si hay
       applyFilters();
       render();
-    },
+          lastLoadTs = Date.now();
+      updateRefreshStatus();
+},
     error: (err)=>{
       alert("No se pudo leer datos. Revisa que la publicación en la web esté activa.\n" + err);
     }
@@ -646,3 +666,35 @@ function renderAlertLog(){
 }
 // inicializar log visible al cargar
 document.addEventListener('DOMContentLoaded', renderAlertLog);
+
+
+async function pingForChange(){
+  try {
+    const url = CONFIG.SHEET_URL + (CONFIG.SHEET_URL.includes("?") ? "&" : "?") + "head=" + Date.now();
+    const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+    // Usa ETag o Last-Modified para firmar
+    const et = r.headers.get('ETag');
+    const lm = r.headers.get('Last-Modified');
+    const len = r.headers.get('Content-Length');
+    const sig = (et || lm || len || '') + '';
+    if(sig && sig !== lastSig){
+      lastSig = sig;
+      localStorage.setItem('siamp_csv_sig', lastSig);
+      // Cambió: recarga ahora
+      loadData();
+      return true;
+    }
+  } catch(e){ /* HEAD puede fallar por CORS; ignorar */ }
+  return false;
+}
+
+
+function updateRefreshStatus(){
+  const el = document.getElementById('refreshStatus');
+  if(!el) return;
+  const t = new Date();
+  const hh = String(t.getHours()).padStart(2,'0');
+  const mm = String(t.getMinutes()).padStart(2,'0');
+  const ss = String(t.getSeconds()).padStart(2,'0');
+  el.textContent = `Última actualización: ${hh}:${mm}:${ss}`;
+}
