@@ -7,6 +7,8 @@ let showHum = true;
 let showWater = true;
 let showFeed = true;
 let averagePerHour = false;
+let showHourlyBand = false;
+let chartDaily;
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -23,12 +25,18 @@ function bindUI(){
   $('#btnShowWater').addEventListener('click', () => { showWater = !showWater; renderChart(); toggleActive('#btnShowWater', showWater); });
   $('#btnShowFeed').addEventListener('click', () => { showFeed = !showFeed; renderChart(); toggleActive('#btnShowFeed', showFeed); });
   $('#btnAvgHour').addEventListener('click', () => { averagePerHour = !averagePerHour; renderChart(); toggleActive('#btnAvgHour', averagePerHour); });
+  $('#btnBandHour').addEventListener('click', () => { showHourlyBand = !showHourlyBand; renderChart(); toggleActive('#btnBandHour', showHourlyBand); });
+  $('#btnAvgDay').addEventListener('click', () => { renderDailyChart(); toggleActive('#btnAvgDay', true); });
 
   $('#applyFilters').addEventListener('click', () => applyFilters());
   $('#resetFilters').addEventListener('click', () => { resetFilters(); filteredRows = rawRows.slice(); render(); });
   $('#showAll').addEventListener('click', () => { resetFilters(); filteredRows = rawRows.slice(); render(); });
   $('#last24').addEventListener('click', () => quickLast24h());
   $('#today').addEventListener('click', () => quickToday());
+  $('#btnTestNotify').addEventListener('click', ()=>{
+    notifyAlert('Prueba de notificación desde SIAMP Dashboard', { demo: true, when: new Date().toLocaleString() });
+    alert('Se envió notificación de prueba (revisa tu proveedor configurado).');
+  });
 }
 
 function toggleActive(selector, isActive){
@@ -150,13 +158,36 @@ function quickLast24h(){
   render();
 }
 
+
+function checkWaterAlert(temp){
+  const box = document.getElementById('waterAlert');
+  if(!box) return;
+  if(!isFinite(temp)){
+    box.className = 'alert hidden';
+    box.textContent = '';
+    return;
+  }
+  if(temp < 14){
+    box.className = 'alert warn';
+    box.textContent = `⚠️ Alerta: Temperatura del agua muy baja (${temp.toFixed(2)} °C)`;
+  }else if(temp > 25){
+    box.className = 'alert warn';
+    box.textContent = `⚠️ Alerta: Temperatura del agua muy alta (${temp.toFixed(2)} °C)`;
+  }else{
+    box.className = 'alert ok';
+    box.textContent = `✅ Temperatura del agua en rango seguro (${temp.toFixed(2)} °C)`;
+  }
+}
+
 function render(){
   if(filteredRows.length){
     const last = filteredRows[filteredRows.length-1];
     document.querySelector('#kpiTemp').textContent = isFinite(last.tempAir) ? `${last.tempAir.toFixed(1)} °C` : '--';
     document.querySelector('#kpiHum').textContent = isFinite(last.hum) ? `${last.hum.toFixed(0)} %` : '--';
     document.querySelector('#kpiWater').textContent = isFinite(last.tempWater) ? `${last.tempWater.toFixed(2)} °C` : '--';
+    checkWaterAlert(last.tempWater);
     document.querySelector('#kpiTime').textContent = last.label;
+    checkWaterAlert(last.tempWater);
     const dayKey = dayjs(last.date).format('YYYY-MM-DD');
     const sumFeed = filteredRows.filter(r => dayjs(r.date).format('YYYY-MM-DD')===dayKey)
                         .reduce((acc,r)=> acc + (r.fed?1:0), 0);
@@ -165,6 +196,99 @@ function render(){
     ['#kpiTemp','#kpiHum','#kpiWater','#kpiTime','#kpiFeed'].forEach(sel => document.querySelector(sel).textContent = '--');
   }
   renderChart();
+}
+
+
+function renderDailyChart(){
+  // Agrupar por día y calcular promedio/min/max
+  const dayMap = new Map();
+  filteredRows.forEach(r=>{
+    const key = dayjs(r.date).format('YYYY-MM-DD');
+    if(!dayMap.has(key)) dayMap.set(key, {date: dayjs(r.date).startOf('day'), air:[], hum:[], water:[]});
+    const o = dayMap.get(key);
+    if(isFinite(r.tempAir)) o.air.push(r.tempAir);
+    if(isFinite(r.hum)) o.hum.push(r.hum);
+    if(isFinite(r.tempWater)) o.water.push(r.tempWater);
+  });
+  const rows = Array.from(dayMap.values()).map(v=>{
+    const avg = a=> a.length? a.reduce((x,y)=>x+y,0)/a.length : null;
+    const mn  = a=> a.length? Math.min(...a) : null;
+    const mx  = a=> a.length? Math.max(...a) : null;
+    return {
+      label: v.date.format('DD/MM/YYYY'),
+      date: v.date.toDate(),
+      airAvg: avg(v.air), airMin: mn(v.air), airMax: mx(v.air),
+      humAvg: avg(v.hum), humMin: mn(v.hum), humMax: mx(v.hum),
+      waterAvg: avg(v.water), waterMin: mn(v.water), waterMax: mx(v.water)
+    };
+  }).sort((a,b)=> a.date - b.date);
+
+  const labels = rows.map(r=>r.label);
+  const airAvg = rows.map(r=>r.airAvg);
+  const airMin = rows.map(r=>r.airMin);
+  const airMax = rows.map(r=>r.airMax);
+  const humAvg = rows.map(r=>r.humAvg);
+
+  const ctx = document.getElementById('chartDaily').getContext('2d');
+  if(chartDaily) chartDaily.destroy();
+
+  chartDaily = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        // Banda min–max diaria (Temp aire)
+        {
+          label:'Temp aire máx (día)',
+          data: airMax,
+          borderColor:'rgba(245,158,11,.0)',
+          backgroundColor:'rgba(245,158,11,.10)',
+          pointRadius:0,
+          fill:'-1',
+          yAxisID:'y'
+        },
+        {
+          label:'Temp aire mín (día)',
+          data: airMin,
+          borderColor:'rgba(245,158,11,.0)',
+          backgroundColor:'rgba(245,158,11,.10)',
+          pointRadius:0,
+          yAxisID:'y'
+        },
+        // Promedio diario Temp aire
+        {
+          label:'Temp aire (promedio día)',
+          data: airAvg,
+          borderColor:'#f59e0b',
+          backgroundColor:'rgba(245,158,11,.15)',
+          tension:.25,
+          yAxisID:'y'
+        },
+        // Promedio diario Humedad (segunda escala)
+        {
+          label:'Humedad (promedio día)',
+          data: humAvg,
+          borderColor:'#3b82f6',
+          backgroundColor:'rgba(59,130,246,.15)',
+          tension:.25,
+          yAxisID:'y1'
+        }
+      ]
+    },
+    options:{
+      responsive:true,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ labels:{ color:'#dbeafe' } },
+        title:{ display:true, text:'Promedio diario con banda min–max', color:'#e5e7eb' }
+      },
+      scales:{
+        x:{ ticks:{ color:'#cbd5e1' } },
+        y:{ position:'left', grid:{ color:'#ffffff15' }, ticks:{ color:'#fde68a' } },
+        y1:{ position:'right', grid:{ drawOnChartArea:false, color:'#ffffff15' }, ticks:{ color:'#bfdbfe' } }
+      }
+    }
+  });
 }
 
 function renderChart(){
@@ -180,7 +304,58 @@ function renderChart(){
   if(chart) chart.destroy();
 
   const datasets = [];
-  if(showTemp){
+  // Líneas de umbral de agua
+  if(labels.length){
+    const minLine = labels.map(()=> CONFIG.WATER_ALERT_MIN);
+    const maxLine = labels.map(()=> CONFIG.WATER_ALERT_MAX);
+    datasets.push({ label:'Umbral min agua', data:minLine, borderColor:'#ef4444', borderDash:[8,6], pointRadius:0, yAxisID:'y' });
+    datasets.push({ label:'Umbral max agua', data:maxLine, borderColor:'#ef4444', borderDash:[8,6], pointRadius:0, yAxisID:'y' });
+  }
+  // Banda min–max por hora
+  let hourAgg = null;
+  if(showHourlyBand){
+    hourAgg = groupByHourExt(filteredRows);
+  }
+  
+      if(showHourlyBand && hourAgg){
+  // banda temperatura (hora)
+  datasets.push({
+    label:'Temp aire máx (hora)',
+    data: hourAgg.maxAir,
+    borderColor:'rgba(245,158,11,0)',
+    backgroundColor:'rgba(245,158,11,.10)',
+    pointRadius:0,
+    fill:'-1',
+    yAxisID:'y'
+  });
+  datasets.push({
+    label:'Temp aire mín (hora)',
+    data: hourAgg.minAir,
+    borderColor:'rgba(245,158,11,0)',
+    backgroundColor:'rgba(245,158,11,.10)',
+    pointRadius:0,
+    yAxisID:'y'
+  });
+  // banda humedad (hora)
+  datasets.push({
+    label:'Humedad máx (hora)',
+    data: hourAgg.maxHum,
+    borderColor:'rgba(59,130,246,0)',
+    backgroundColor:'rgba(59,130,246,.10)',
+    pointRadius:0,
+    fill:'-1',
+    yAxisID:'y1'
+  });
+  datasets.push({
+    label:'Humedad mín (hora)',
+    data: hourAgg.minHum,
+    borderColor:'rgba(59,130,246,0)',
+    backgroundColor:'rgba(59,130,246,.10)',
+    pointRadius:0,
+    yAxisID:'y1'
+  });
+}
+if(showTemp){
     datasets.push({
       label:'Temp aire (°C)',
       data: tempAir,
@@ -270,4 +445,24 @@ function groupByHour(rows){
   }
   out.sort((a,b)=> a.date - b.date);
   return out;
+}
+
+
+function groupByHourExt(rows){
+  const map = new Map();
+  rows.forEach(r=>{
+    const key = dayjs(r.date).format('YYYY-MM-DD HH:00');
+    if(!map.has(key)) map.set(key, {date: dayjs(r.date).startOf('hour'), air:[], hum:[]});
+    const o = map.get(key);
+    if(isFinite(r.tempAir)) o.air.push(r.tempAir);
+    if(isFinite(r.hum)) o.hum.push(r.hum);
+  });
+  const sorted = Array.from(map.values()).sort((a,b)=> a.date - b.date);
+  return {
+    labels: sorted.map(v=> v.date.format('DD/MM/YYYY HH:mm')),
+    minAir: sorted.map(v=> v.air.length? Math.min(...v.air): null),
+    maxAir: sorted.map(v=> v.air.length? Math.max(...v.air): null),
+    minHum: sorted.map(v=> v.hum.length? Math.min(...v.hum): null),
+    maxHum: sorted.map(v=> v.hum.length? Math.max(...v.hum): null)
+  };
 }

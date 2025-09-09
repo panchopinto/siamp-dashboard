@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/customParseFormat.js"></script>
   <script>dayjs.extend(dayjs_plugin_customParseFormat)</script>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <script defer src="js/config.js"></script>
   <script defer src="js/app.js"></script>
 </head>
@@ -68,11 +69,21 @@
         <span class="icon"><svg viewBox="0 0 24 24" class="i"><path fill="url(#g-purple)" d="M12 7v5l4 2-.75 1.3L11 12V7h1zM12 1a11 11 0 1011 11A11 11 0 0012 1z"/></svg></span>
         Promediar por hora
       </button>
-    </nav>
-  </header>
+    
+      <button class="btn ghost" id="btnAvgDay">
+        <span class="icon"><svg viewBox="0 0 24 24" class="i"><path fill="url(#g-green)" d="M4 19h16v2H4zM5 4h2v12H5zm4 4h2v8H9zm4-3h2v11h-2zm4 5h2v6h-2z"/></svg></span>
+        Promedio diario
+      </button>
+      <button class="btn ghost" id="btnBandHour">
+        <span class="icon"><svg viewBox="0 0 24 24" class="i"><path fill="url(#g-purple)" d="M3 17l4-4 4 4 4-4 4 4v2H3z"/></svg></span>
+        Banda min–max (hora)
+      </button>
+  </nav>
+</header>
 
   <main class="container">
     <section class="filters glass">
+      <div id="alertWater" class="alert hidden" role="alert" aria-live="polite"></div>
       <div class="badge-row">
         <div class="metric temp">
           <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-orange)" d="M6 2v11.09A7 7 0 1013 21V2H6z"/></svg>
@@ -111,6 +122,7 @@
         </div>
       </div>
 
+      <div id="waterAlert" class="alert hidden"></div>
       <div class="filter-grid">
         <label>Año
           <select id="fYear"><option value="">Todos</option></select>
@@ -148,12 +160,23 @@
             <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-orange)" d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zm0 14H5V10h14z"/></svg>
             Hoy
           </button>
-        </div>
-      </div>
-    </section>
+        
+    <div class="notify-actions" style="margin-top:8px">
+      <button class="btn outline" id="btnTestNotify">
+        <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-green)" d="M12 22a10 10 0 110-20 10 10 0 010 20zm-1-7.41l6.3-6.3 1.41 1.41L11 17.41l-4.71-4.7 1.41-1.41L11 15.59z"/></svg>
+        Probar notificación
+      </button>
+    </div>
+  </div>
+</section>
 
     <section class="chart glass">
+      <h3 class="chart-title">Señales en tiempo / por hora</h3>
       <canvas id="chart"></canvas>
+    </section>
+    <section class="chart glass">
+      <h3 class="chart-title">Promedio diario (con min–max)</h3>
+      <canvas id="chartDaily"></canvas>
     </section>
   </main>
 
