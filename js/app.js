@@ -138,9 +138,14 @@ function initThresholdUI(){
 
 
 const AUTO_REFRESH_MS = 60 * 1000;
+let autoEnabled = JSON.parse(localStorage.getItem("siamp_auto") || "true");
+let __autoTimer = null;
+function startAuto(){ if(__autoTimer) clearInterval(__autoTimer); if(!autoEnabled) return; __autoTimer = setInterval(()=>{ try{ loadData(); }catch(e){ console.warn("auto-refresh error", e);} }, AUTO_REFRESH_MS);} 
+function updateAutoBtn(){ const b=document.getElementById("btnAuto"); if(!b) return; b.textContent = autoEnabled ? "Auto: ON" : "Auto: OFF"; }
 document.addEventListener("DOMContentLoaded", () => {
-  // Auto-actualización cada 1 minuto
-  try { setInterval(() => { try { loadData(); } catch(e) { console.warn("auto-refresh error", e); } }, AUTO_REFRESH_MS); } catch(e) {}
+  // Auto-actualización con ON/OFF
+  startAuto();
+  updateAutoBtn();
   // Botón manual de actualización
   try { document.getElementById("btnRefresh")?.addEventListener("click", () => loadData()); } catch(e) {}
   loadData();
@@ -181,7 +186,8 @@ function toggleActive(selector, isActive){
 }
 
 function loadData(){
-  Papa.parse(CONFIG.SHEET_URL, {
+  const __url = CONFIG.SHEET_URL + (CONFIG.SHEET_URL.includes("?") ? "&" : "?") + "cb=" + Date.now();
+  Papa.parse(__url, {
     download:true, header:true, dynamicTyping:false, skipEmptyLines:true,
     complete: (res)=>{
       rawRows = res.data.map(cleanRow).filter(Boolean);
