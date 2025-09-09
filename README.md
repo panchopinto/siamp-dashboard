@@ -96,3 +96,10 @@ En la sección de filtros verás **Umbral agua (mín/máx)** y **Modo de alerta*
 - Pulsa **Guardar umbrales** para aplicar y persistir en `localStorage`.
 - **Restablecer** vuelve a los valores por defecto de `config.js`.
 - Los cambios actualizan de inmediato el KPI, el banner y las **líneas de umbral** del gráfico principal.
+
+
+## ✅ Mejoras añadidas
+- **Persistencia de estado**: series visibles, filtros, promedio por hora y banda min–max.
+- **Alertas con histéresis** y tiempo mínimo de permanencia antes de notificar.
+- **Pan & Zoom** en el gráfico principal + botón **Reset Zoom**.
+- **Historial de alertas** con nivel (warning/critical), mensaje, valor y timestamp (guardado en `localStorage`).

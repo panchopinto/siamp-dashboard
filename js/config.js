@@ -9,7 +9,12 @@ const CONFIG = {
   WATER_ALERT_MAX: 18.0,
   // Modo de alerta: 'outside' (fuera del rango) o 'below'/'above'
   
-      WATER_ALERT_MODE: 'outside',
+      
+WATER_ALERT_MODE: 'outside',
+  // Histéresis (°C) para evitar flapping; y tiempo mínimo de permanencia para disparar alerta
+  WATER_ALERT_HYSTERESIS: 0.3,
+  WATER_ALERT_HOLD_MINUTES: 1
+,
 // Notificaciones (EmailJS / Webhook). Si usas WhatsApp (Twilio), configura un Webhook propio (Worker/Function).
 ALERTS: {
   ENABLED: true,

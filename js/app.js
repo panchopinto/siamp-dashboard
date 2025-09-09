@@ -11,7 +11,49 @@ let showHourlyBand = false;
 let chartDaily;
 
 const $ = (s) => document.querySelector(s);
+
 const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+// Persistencia de UI
+const STATE_KEY = 'siamp_ui_state';
+function saveUIState(){
+  try{
+    const state = {
+      showTemp, showHum, showWater, showFeed,
+      averagePerHour, showHourlyBand,
+      filters: {
+        year: document.querySelector('#fYear')?.value || '',
+        month: document.querySelector('#fMonth')?.value || '',
+        day: document.querySelector('#fDay')?.value || '',
+        hour: document.querySelector('#fHour')?.value || '',
+        minute: document.querySelector('#fMinute')?.value || ''
+      }
+    };
+    localStorage.setItem(STATE_KEY, JSON.stringify(state));
+  }catch(e){}
+}
+function loadUIState(){
+  try{
+    const raw = localStorage.getItem(STATE_KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    if(typeof s.showTemp === 'boolean') showTemp = s.showTemp;
+    if(typeof s.showHum === 'boolean') showHum = s.showHum;
+    if(typeof s.showWater === 'boolean') showWater = s.showWater;
+    if(typeof s.showFeed === 'boolean') showFeed = s.showFeed;
+    if(typeof s.averagePerHour === 'boolean') averagePerHour = s.averagePerHour;
+    if(typeof s.showHourlyBand === 'boolean') showHourlyBand = s.showHourlyBand;
+    if(s.filters){
+      const set = (id,v)=>{ const el = document.querySelector(id); if(el && typeof v !== 'undefined') el.value = v; };
+      set('#fYear', s.filters.year);
+      set('#fMonth', s.filters.month);
+      set('#fDay', s.filters.day);
+      set('#fHour', s.filters.hour);
+      set('#fMinute', s.filters.minute);
+    }
+  }catch(e){}
+}
+
 
 const TH_KEY = 'siamp_thresholds';
 const DEFAULT_THRESHOLDS = {
@@ -102,20 +144,24 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelector('.year')?.setAttribute('data-year', new Date().getFullYear());
 });
 
+
 function bindUI(){
-  $('#btnShowTemp').addEventListener('click', () => { showTemp = !showTemp; renderChart(); toggleActive('#btnShowTemp', showTemp); });
-  $('#btnShowHum').addEventListener('click', () => { showHum = !showHum; renderChart(); toggleActive('#btnShowHum', showHum); });
-  $('#btnShowWater').addEventListener('click', () => { showWater = !showWater; renderChart(); toggleActive('#btnShowWater', showWater); });
-  $('#btnShowFeed').addEventListener('click', () => { showFeed = !showFeed; renderChart(); toggleActive('#btnShowFeed', showFeed); });
-  $('#btnAvgHour').addEventListener('click', () => { averagePerHour = !averagePerHour; renderChart(); toggleActive('#btnAvgHour', averagePerHour); });
-  $('#btnBandHour').addEventListener('click', () => { showHourlyBand = !showHourlyBand; renderChart(); toggleActive('#btnBandHour', showHourlyBand); });
+
+  $('#btnShowTemp').addEventListener('click', () => { showTemp = !showTemp; renderChart(); toggleActive('#btnShowTemp', showTemp); saveUIState(); });
+  $('#btnShowHum').addEventListener('click', () => { showHum = !showHum; renderChart(); toggleActive('#btnShowHum', showHum); saveUIState(); });
+  $('#btnShowWater').addEventListener('click', () => { showWater = !showWater; renderChart(); toggleActive('#btnShowWater', showWater); saveUIState(); });
+  $('#btnShowFeed').addEventListener('click', () => { showFeed = !showFeed; renderChart(); toggleActive('#btnShowFeed', showFeed); saveUIState(); });
+  $('#btnAvgHour').addEventListener('click', () => { averagePerHour = !averagePerHour; renderChart(); toggleActive('#btnAvgHour', averagePerHour); saveUIState(); });
+  $('#btnBandHour').addEventListener('click', () => { showHourlyBand = !showHourlyBand; renderChart(); toggleActive('#btnBandHour', showHourlyBand); saveUIState(); });
   $('#btnAvgDay').addEventListener('click', () => { renderDailyChart(); toggleActive('#btnAvgDay', true); });
 
-  $('#applyFilters').addEventListener('click', () => applyFilters());
-  $('#resetFilters').addEventListener('click', () => { resetFilters(); filteredRows = rawRows.slice(); render(); });
-  $('#showAll').addEventListener('click', () => { resetFilters(); filteredRows = rawRows.slice(); render(); });
-  $('#last24').addEventListener('click', () => quickLast24h());
-  $('#today').addEventListener('click', () => quickToday());
+  $('#applyFilters').addEventListener('click', () => { applyFilters(); saveUIState(); });
+  $('#resetFilters').addEventListener('click', () => { resetFilters(); filteredRows = rawRows.slice(); render(); saveUIState(); });
+  $('#showAll').addEventListener('click', () => { resetFilters(); filteredRows = rawRows.slice(); render(); saveUIState(); });
+  $('#last24').addEventListener('click', () => { quickLast24h(); saveUIState(); });
+  $('#today').addEventListener('click', () => { quickToday(); saveUIState(); });
+  $('#resetZoom').addEventListener('click', () => { if(chart) chart.resetZoom(); });
+  $('#clearLog').addEventListener('click', clearAlertLog);
   $('#btnTestNotify').addEventListener('click', ()=>{
     notifyAlert('Prueba de notificación desde SIAMP Dashboard', { demo: true, when: new Date().toLocaleString() });
     alert('Se envió notificación de prueba (revisa tu proveedor configurado).');
@@ -137,6 +183,9 @@ function loadData(){
       rawRows.sort((a,b)=> a.date - b.date);
       filteredRows = rawRows.slice();
       hydrateFilters(rawRows);
+      loadUIState();
+      // aplicar filtros cargados si hay
+      applyFilters();
       render();
     },
     error: (err)=>{
@@ -492,7 +541,11 @@ if(showTemp){
       plugins:{
         legend:{ labels:{ color:'#dbeafe' } },
         title:{ display:true, text: averagePerHour ? 'SIAMP — Promedio por hora' : 'SIAMP — Señales en tiempo', color:'#e5e7eb' },
-        tooltip:{ callbacks:{ title:(ctx)=> ctx[0]?.label || '' } }
+        tooltip:{ callbacks:{ title:(ctx)=> ctx[0]?.label || '' } },
+        zoom:{
+          pan:{ enabled:true, mode:'x' },
+          zoom:{ wheel:{enabled:true}, pinch:{enabled:true}, mode:'x' }
+        }
       },
       scales:{
         x:{ ticks:{ color:'#cbd5e1' } },
@@ -549,3 +602,36 @@ function groupByHourExt(rows){
     maxHum: sorted.map(v=> v.hum.length? Math.max(...v.hum): null)
   };
 }
+
+
+const LOG_KEY = 'siamp_alert_log';
+function appendAlertLog(entry){
+  try{
+    const list = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+    list.push(entry);
+    // mantener último 200
+    while(list.length > 200) list.shift();
+    localStorage.setItem(LOG_KEY, JSON.stringify(list));
+    renderAlertLog();
+  }catch(e){}
+}
+function clearAlertLog(){
+  localStorage.removeItem(LOG_KEY);
+  renderAlertLog();
+}
+function renderAlertLog(){
+  const tbody = document.querySelector('#alertLog tbody');
+  if(!tbody) return;
+  let list = [];
+  try{ list = JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); }catch(e){}
+  tbody.innerHTML = '';
+  list.slice(-200).reverse().forEach(it=>{
+    const tr = document.createElement('tr');
+    const when = new Date(it.ts||Date.now()).toLocaleString();
+    const badge = it.level==='critical' ? '<span class="badge-crit">CRITICAL</span>' : (it.level==='warning' ? '<span class="badge-warn">WARN</span>' : '');
+    tr.innerHTML = `<td>${when}</td><td>${badge}</td><td>${it.message||''}</td><td>${(it.value??'')}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+// inicializar log visible al cargar
+document.addEventListener('DOMContentLoaded', renderAlertLog);

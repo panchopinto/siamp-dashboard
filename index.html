@@ -8,6 +8,7 @@
   <!-- CDNs -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/customParseFormat.js"></script>
   <script>dayjs.extend(dayjs_plugin_customParseFormat)</script>
@@ -200,10 +201,30 @@
     <section class="chart glass">
       <h3 class="chart-title">Señales en tiempo / por hora</h3>
       <canvas id="chart"></canvas>
-    </section>
+    
+</section>
     <section class="chart glass">
       <h3 class="chart-title">Promedio diario (con min–max)</h3>
       <canvas id="chartDaily"></canvas>
+    </section>
+    <section class="glass log">
+      <div class="log-header">
+        <h3 class="chart-title" style="margin:0">Historial de alertas</h3>
+        <div class="log-actions">
+          <button class="btn outline" id="clearLog">
+            <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-pink)" d="M6 19a2 2 0 002 2h8a2 2 0 002-2V7H6zm12-12V5h-3.5l-1-1h-3l-1 1H6v2z"/></svg>
+            Limpiar
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="log-table" id="alertLog">
+          <thead>
+            <tr><th>Fecha/Hora</th><th>Nivel</th><th>Mensaje</th><th>Valor (°C)</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
   </main>
 
