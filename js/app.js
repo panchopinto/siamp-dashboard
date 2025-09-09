@@ -196,16 +196,8 @@ function toggleActive(selector, isActive){
   el.style.opacity = isActive ? '1' : '0.7';
 }
 
-function getSheetUrl(){
-  let u = CONFIG.SHEET_URL;
-  try { const o = localStorage.getItem('siamp_sheet_url'); if (o) u = o; } catch(_) {}
-  return u;
-}
-window.setSheetUrl = function(u){ try { localStorage.setItem('siamp_sheet_url', u||''); } catch(_) {} location.reload(); };
-
 function loadData(){
-  const __base = getSheetUrl();
-  const __url = __base + (__base.includes("?") ? "&" : "?") + "cb=" + Date.now();
+  const __url = CONFIG.SHEET_URL + (CONFIG.SHEET_URL.includes("?") ? "&" : "?") + "cb=" + Date.now();
   Papa.parse(__url, {
     download:true, header:true, dynamicTyping:false, skipEmptyLines:true,
     complete: (res) => {
@@ -220,16 +212,8 @@ function loadData(){
           lastLoadTs = Date.now();
       updateRefreshStatus();
 },
-    error: (err) => {
-      console.error('No se pudo leer datos del CSV', err);
-      const u = getSheetUrl();
-      alert("No se pudo leer datos desde Google Sheets.\n"
-        + "1) Asegúrate de usar el enlace PUBLICADO en la web (output=csv).\n"
-        + "2) Verifica que el gid corresponda a Hoja1.\n"
-        + "3) Abre esta URL en otra pestaña: " + u + "\n"
-        + "4) Si ves una página de login/HTML (no CSV), publica la hoja: Archivo > Compartir > Publicar en la web.\n\n"
-        + "TIP: Puedes cambiar la URL sin redeploy: en la consola del navegador ejecuta\n"
-        + "setSheetUrl('https://docs.google.com/spreadsheets/d/e/.../pub?gid=...&single=true&output=csv')");
+    error: (err)=>{
+      alert("No se pudo leer datos. Revisa que la publicación en la web esté activa.\n" + err);
     }
   });
 }
