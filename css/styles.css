@@ -61,6 +61,12 @@ body{
 .filter-grid{
   display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:10px; align-items:end
 }
+/* --- Fix: thresholds/actions full-row in filter grid --- */
+.filter-grid > .thresholds{ grid-column: 1 / -1; }
+.filter-grid > .filter-actions{ grid-column: 1 / -1; }
+.filter-grid > .notify-actions{ grid-column: 1 / -1; }
+/* --- End fix --- */
+
 .filter-grid label{display:flex; flex-direction:column; font-size:.9rem; color:#cbd5e1; gap:6px}
 .filter-grid select{
   background:#0b1220; color:var(--text); border:1px solid #ffffff22; padding:10px; border-radius:10px;

@@ -137,7 +137,12 @@ function initThresholdUI(){
 }
 
 
+const AUTO_REFRESH_MS = 60 * 1000;
 document.addEventListener("DOMContentLoaded", () => {
+  // Auto-actualización cada 1 minuto
+  try { setInterval(() => { try { loadData(); } catch(e) { console.warn("auto-refresh error", e); } }, AUTO_REFRESH_MS); } catch(e) {}
+  // Botón manual de actualización
+  try { document.getElementById("btnRefresh")?.addEventListener("click", () => loadData()); } catch(e) {}
   loadData();
   bindUI();
   initThresholdUI();
