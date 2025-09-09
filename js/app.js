@@ -137,8 +137,29 @@ function initThresholdUI(){
 }
 
 
-document.addEventListener("DOMContentLoaded", () => {
-  loadData();
+const AUTO_REFRESH_MS = 60 * 1000;
+let autoEnabled = JSON.parse(localStorage.getItem("siamp_auto") || "true");
+let __autoTimer = null;
+let lastLoadTs = 0; // timestamp del último loadData()
+let lastSig = localStorage.getItem('siamp_csv_sig') || null;
+function startAuto(){
+  if(__autoTimer) clearInterval(__autoTimer);
+  if(!autoEnabled) { updateAutoUI(); return; }
+  updateAutoUI();
+  // Cada 15s, intenta detectar cambios rápidos; si no, recarga duro cada 60s
+  __autoTimer = setInterval(async () => {
+    try{
+      const since = Date.now() - lastLoadTs;
+      if(since >= AUTO_REFRESH_MS){
+        loadData();
+      } else {
+        // Si hay cambio detectado antes del minuto, recarga de inmediato
+        await pingForChange();
+      }
+    }catch(e){ console.warn('smart auto error', e); }
+  }, 15000);
+}catch(e){ console.warn("auto-refresh error", e);} }, AUTO_REFRESH_MS);} 
+function updateAutoUI(){ const b=loadData();
   bindUI();
   initThresholdUI();
   document.querySelector('.year')?.setAttribute('data-year', new Date().getFullYear());
@@ -175,10 +196,19 @@ function toggleActive(selector, isActive){
   el.style.opacity = isActive ? '1' : '0.7';
 }
 
+function getSheetUrl(){
+  let u = CONFIG.SHEET_URL;
+  try { const o = localStorage.getItem('siamp_sheet_url'); if (o) u = o; } catch(_) {}
+  return u;
+}
+window.setSheetUrl = function(u){ try { localStorage.setItem('siamp_sheet_url', u||''); } catch(_) {} location.reload(); };
+
 function loadData(){
-  Papa.parse(CONFIG.SHEET_URL, {
+  const __base = getSheetUrl();
+  const __url = __base + (__base.includes("?") ? "&" : "?") + "cb=" + Date.now();
+  Papa.parse(__url, {
     download:true, header:true, dynamicTyping:false, skipEmptyLines:true,
-    complete: (res)=>{
+    complete: (res) => {
       rawRows = res.data.map(cleanRow).filter(Boolean);
       rawRows.sort((a,b)=> a.date - b.date);
       filteredRows = rawRows.slice();
@@ -187,9 +217,19 @@ function loadData(){
       // aplicar filtros cargados si hay
       applyFilters();
       render();
-    },
-    error: (err)=>{
-      alert("No se pudo leer datos. Revisa que la publicación en la web esté activa.\n" + err);
+          lastLoadTs = Date.now();
+      updateRefreshStatus();
+},
+    error: (err) => {
+      console.error('No se pudo leer datos del CSV', err);
+      const u = getSheetUrl();
+      alert("No se pudo leer datos desde Google Sheets.\n"
+        + "1) Asegúrate de usar el enlace PUBLICADO en la web (output=csv).\n"
+        + "2) Verifica que el gid corresponda a Hoja1.\n"
+        + "3) Abre esta URL en otra pestaña: " + u + "\n"
+        + "4) Si ves una página de login/HTML (no CSV), publica la hoja: Archivo > Compartir > Publicar en la web.\n\n"
+        + "TIP: Puedes cambiar la URL sin redeploy: en la consola del navegador ejecuta\n"
+        + "setSheetUrl('https://docs.google.com/spreadsheets/d/e/.../pub?gid=...&single=true&output=csv')");
     }
   });
 }
@@ -635,3 +675,35 @@ function renderAlertLog(){
 }
 // inicializar log visible al cargar
 document.addEventListener('DOMContentLoaded', renderAlertLog);
+
+
+async function pingForChange(){
+  try {
+    const url = CONFIG.SHEET_URL + (CONFIG.SHEET_URL.includes("?") ? "&" : "?") + "head=" + Date.now();
+    const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+    // Usa ETag o Last-Modified para firmar
+    const et = r.headers.get('ETag');
+    const lm = r.headers.get('Last-Modified');
+    const len = r.headers.get('Content-Length');
+    const sig = (et || lm || len || '') + '';
+    if(sig && sig !== lastSig){
+      lastSig = sig;
+      localStorage.setItem('siamp_csv_sig', lastSig);
+      // Cambió: recarga ahora
+      loadData();
+      return true;
+    }
+  } catch(e){ /* HEAD puede fallar por CORS; ignorar */ }
+  return false;
+}
+
+
+function updateRefreshStatus(){
+  const el = document.getElementById('refreshStatus');
+  if(!el) return;
+  const t = new Date();
+  const hh = String(t.getHours()).padStart(2,'0');
+  const mm = String(t.getMinutes()).padStart(2,'0');
+  const ss = String(t.getSeconds()).padStart(2,'0');
+  el.textContent = `Última actualización: ${hh}:${mm}:${ss}`;
+}
