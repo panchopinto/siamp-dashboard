@@ -161,7 +161,34 @@
             Hoy
           </button>
         
-    <div class="notify-actions" style="margin-top:8px">
+    
+<div id="thresholdsBox" class="thresholds">
+  <label>Umbral agua (mín °C)
+    <input id="thMin" type="number" step="0.1" placeholder="Mín" />
+  </label>
+  <label>Umbral agua (máx °C)
+    <input id="thMax" type="number" step="0.1" placeholder="Máx" />
+  </label>
+  <label>Modo de alerta
+    <select id="thMode">
+      <option value="outside">Fuera del rango</option>
+      <option value="below">Solo por debajo</option>
+      <option value="above">Solo por encima</option>
+    </select>
+  </label>
+  <div class="th-actions">
+    <button class="btn success" id="thSave">
+      <svg viewBox="0 0 24 24" class="i"><path fill="white" d="M9 16.17L4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      Guardar umbrales
+    </button>
+    <button class="btn outline" id="thReset">
+      <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-orange)" d="M12 6V3L8 7l4 4V8a4 4 0 014 4 4 4 0 01-7.33 2.4l-1.45 1.45A6 6 0 1012 6z"/></svg>
+      Restablecer
+    </button>
+  </div>
+  <div id="thError" class="th-error" style="display:none"></div>
+</div>
+<div class="notify-actions" style="margin-top:8px">
       <button class="btn outline" id="btnTestNotify">
         <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-green)" d="M12 22a10 10 0 110-20 10 10 0 010 20zm-1-7.41l6.3-6.3 1.41 1.41L11 17.41l-4.71-4.7 1.41-1.41L11 15.59z"/></svg>
         Probar notificación

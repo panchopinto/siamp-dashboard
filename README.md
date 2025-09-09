@@ -89,3 +89,10 @@ Puedes enviar alertas cuando la **Temperatura del Agua** salga del rango.
 ### Prueba rápida
 - En el panel, usa el botón **“Probar notificación”** para enviar un mensaje de test.
 - Hay **anti‑spam** por contenido y tiempo (cooldown configurable).
+
+
+### ✏️ Umbrales en vivo (persistentes)
+En la sección de filtros verás **Umbral agua (mín/máx)** y **Modo de alerta**.
+- Pulsa **Guardar umbrales** para aplicar y persistir en `localStorage`.
+- **Restablecer** vuelve a los valores por defecto de `config.js`.
+- Los cambios actualizan de inmediato el KPI, el banner y las **líneas de umbral** del gráfico principal.

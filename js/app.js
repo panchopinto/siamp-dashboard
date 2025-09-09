@@ -13,9 +13,92 @@ let chartDaily;
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
+const TH_KEY = 'siamp_thresholds';
+const DEFAULT_THRESHOLDS = {
+  min: CONFIG.WATER_ALERT_MIN,
+  max: CONFIG.WATER_ALERT_MAX,
+  mode: CONFIG.WATER_ALERT_MODE
+};
+
+function parseNumLocal(v){
+  if(v===undefined || v===null) return NaN;
+  return parseFloat(v.toString().replace(',', '.'));
+}
+
+function loadThresholdsFromStorage(){
+  try{
+    const raw = localStorage.getItem(TH_KEY);
+    if(!raw) return;
+    const obj = JSON.parse(raw);
+    if(typeof obj.min === 'number') CONFIG.WATER_ALERT_MIN = obj.min;
+    if(typeof obj.max === 'number') CONFIG.WATER_ALERT_MAX = obj.max;
+    if(typeof obj.mode === 'string') CONFIG.WATER_ALERT_MODE = obj.mode;
+  }catch(e){ console.warn('No thresholds in storage'); }
+}
+
+function initThresholdUI(){
+  // aplicar overrides antes de poblar
+  loadThresholdsFromStorage();
+
+  const minEl = document.getElementById('thMin');
+  const maxEl = document.getElementById('thMax');
+  const modeEl = document.getElementById('thMode');
+  const errEl = document.getElementById('thError');
+
+  if(!minEl || !maxEl || !modeEl) return;
+
+  // Poblar UI con valores actuales
+  minEl.value = CONFIG.WATER_ALERT_MIN;
+  maxEl.value = CONFIG.WATER_ALERT_MAX;
+  modeEl.value = (CONFIG.WATER_ALERT_MODE||'outside').toLowerCase();
+
+  const save = ()=>{
+    errEl.style.display = 'none'; errEl.textContent = '';
+    const min = parseNumLocal(minEl.value);
+    const max = parseNumLocal(maxEl.value);
+    const mode = (modeEl.value||'outside').toLowerCase();
+    if(!isFinite(min) || !isFinite(max)){
+      errEl.textContent = 'Ingresa valores numéricos válidos.'; errEl.style.display='block'; return;
+    }
+    if(min >= max && mode==='outside'){
+      errEl.textContent = 'El mínimo debe ser menor que el máximo en modo "fuera del rango".'; errEl.style.display='block'; return;
+    }
+    // Guardar
+    localStorage.setItem(TH_KEY, JSON.stringify({min, max, mode}));
+    CONFIG.WATER_ALERT_MIN = min;
+    CONFIG.WATER_ALERT_MAX = max;
+    CONFIG.WATER_ALERT_MODE = mode;
+    // Re-render kpi & gráficos con nuevas líneas/alertas
+    render();
+    alert('Umbrales guardados ✅');
+  };
+
+  const reset = ()=>{
+    localStorage.removeItem(TH_KEY);
+    CONFIG.WATER_ALERT_MIN = DEFAULT_THRESHOLDS.min;
+    CONFIG.WATER_ALERT_MAX = DEFAULT_THRESHOLDS.max;
+    CONFIG.WATER_ALERT_MODE = DEFAULT_THRESHOLDS.mode;
+    minEl.value = CONFIG.WATER_ALERT_MIN;
+    maxEl.value = CONFIG.WATER_ALERT_MAX;
+    modeEl.value = (CONFIG.WATER_ALERT_MODE||'outside').toLowerCase();
+    render();
+    alert('Umbrales restablecidos a valores por defecto.');
+  };
+
+  document.getElementById('thSave')?.addEventListener('click', save);
+  document.getElementById('thReset')?.addEventListener('click', reset);
+
+  // Guardar con Enter en inputs
+  [minEl, maxEl].forEach(el => el.addEventListener('keydown', (ev)=>{
+    if(ev.key==='Enter'){ save(); }
+  }));
+}
+
+
 document.addEventListener("DOMContentLoaded", () => {
   loadData();
   bindUI();
+  initThresholdUI();
   document.querySelector('.year')?.setAttribute('data-year', new Date().getFullYear());
 });
 
