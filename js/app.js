@@ -144,8 +144,8 @@ let lastLoadTs = 0; // timestamp del último loadData()
 let lastSig = localStorage.getItem('siamp_csv_sig') || null;
 function startAuto(){
   if(__autoTimer) clearInterval(__autoTimer);
-  if(!autoEnabled) { updateAutoBtn(); return; }
-  updateAutoBtn();
+  if(!autoEnabled) { updateAutoUI(); return; }
+  updateAutoUI();
   // Cada 15s, intenta detectar cambios rápidos; si no, recarga duro cada 60s
   __autoTimer = setInterval(async () => {
     try{
@@ -159,14 +159,7 @@ function startAuto(){
     }catch(e){ console.warn('smart auto error', e); }
   }, 15000);
 }catch(e){ console.warn("auto-refresh error", e);} }, AUTO_REFRESH_MS);} 
-function updateAutoBtn(){ const b=document.getElementById("btnAuto"); if(!b) return; b.textContent = autoEnabled ? "Auto (1 min): ON" : "Auto (1 min): OFF"; }
-document.addEventListener("DOMContentLoaded", () => {
-  // Auto-actualización con ON/OFF
-  startAuto();
-  updateAutoBtn();
-  // Botón manual de actualización
-  try { document.getElementById("btnRefresh")?.addEventListener("click", () => loadData()); } catch(e) {}
-  loadData();
+function updateAutoUI(){ const b=loadData();
   bindUI();
   initThresholdUI();
   document.querySelector('.year')?.setAttribute('data-year', new Date().getFullYear());
