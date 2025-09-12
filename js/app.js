@@ -9,10 +9,14 @@ let showFeed = true;
 let averagePerHour = false;
 let showHourlyBand = false;
 let chartDaily;
+let autoRefresh = false;
+let autoRefreshTimer = null;
 
 const $ = (s) => document.querySelector(s);
 
 const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+const AUTO_REFRESH_KEY = 'siamp_auto_refresh';
 
 // Persistencia de UI
 const STATE_KEY = 'siamp_ui_state';
@@ -138,9 +142,10 @@ function initThresholdUI(){
 
 
 document.addEventListener("DOMContentLoaded", () => {
-  loadData();
   bindUI();
   initThresholdUI();
+  initAutoRefresh();
+  if(!autoRefresh) loadData();
   document.querySelector('.year')?.setAttribute('data-year', new Date().getFullYear());
 });
 
@@ -166,6 +171,33 @@ function bindUI(){
     notifyAlert('Prueba de notificación desde SIAMP Dashboard', { demo: true, when: new Date().toLocaleString() });
     alert('Se envió notificación de prueba (revisa tu proveedor configurado).');
   });
+}
+
+function initAutoRefresh(){
+  const toggle = document.getElementById('autoRefresh');
+  if(!toggle) return;
+  const saved = localStorage.getItem(AUTO_REFRESH_KEY);
+  autoRefresh = saved === 'true';
+  toggle.checked = autoRefresh;
+  if(autoRefresh) startAutoRefresh();
+  toggle.addEventListener('change', () => {
+    autoRefresh = toggle.checked;
+    autoRefresh ? startAutoRefresh() : stopAutoRefresh();
+    localStorage.setItem(AUTO_REFRESH_KEY, autoRefresh ? 'true' : 'false');
+  });
+}
+
+function startAutoRefresh(){
+  stopAutoRefresh();
+  loadData();
+  autoRefreshTimer = setInterval(loadData, 60000);
+}
+
+function stopAutoRefresh(){
+  if(autoRefreshTimer){
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
 }
 
 function toggleActive(selector, isActive){
