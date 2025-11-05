@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>SIAMP — Panel (Temp Aire, Temp Agua, Humedad, Alimentaciones)</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <!-- CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/customParseFormat.js"></script>
+  <script>dayjs.extend(dayjs_plugin_customParseFormat)</script>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script defer src="js/config.js"></script>
+  <script defer src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar glass">
+    <div class="brand">
+      <svg class="i i-city-grad" viewBox="0 0 24 24" aria-hidden="true">
+        <defs>
+          <linearGradient id="g-green" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#34d399"/>
+            <stop offset="100%" stop-color="#10b981"/>
+          </linearGradient>
+          <linearGradient id="g-blue" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#60a5fa"/>
+            <stop offset="100%" stop-color="#3b82f6"/>
+          </linearGradient>
+          <linearGradient id="g-purple" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#c084fc"/>
+            <stop offset="100%" stop-color="#a855f7"/>
+          </linearGradient>
+          <linearGradient id="g-orange" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#fb923c"/>
+            <stop offset="100%" stop-color="#f97316"/>
+          </linearGradient>
+          <linearGradient id="g-pink" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#f472b6"/>
+            <stop offset="100%" stop-color="#ec4899"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#g-green)" d="M3 13h2v7H3zM7 8h2v12H7zM11 4h2v16h-2zM15 10h2v10h-2zM19 6h2v14h-2z"/>
+      </svg>
+      <div>
+        <h1>SIAMP — Panel</h1>
+        <small>Google Sheets → Hoja1</small>
+      </div>
+    </div>
+    <nav class="actions">
+      <button class="btn ghost" id="btnShowTemp">
+        <span class="icon"><svg viewBox="0 0 24 24" class="i"><path fill="url(#g-orange)" d="M6 2v11.09A7 7 0 1013 21V2H6z"/></svg></span>
+        Temp Aire
+      </button>
+      <button class="btn ghost" id="btnShowHum">
+        <span class="icon"><svg viewBox="0 0 24 24" class="i"><path fill="url(#g-blue)" d="M12 2S5 10 5 14a7 7 0 0014 0c0-4-7-12-7-12z"/></svg></span>
+        Humedad
+      </button>
+      <button class="btn ghost" id="btnShowWater">
+        <span class="icon"><svg viewBox="0 0 24 24" class="i"><path fill="url(#g-green)" d="M4 20h16v-2H4v2zM7 4h2v12H7zm4 4h2v8h-2zm4-3h2v11h-2z"/></svg></span>
+        Temp Agua
+      </button>
+      <button class="btn ghost" id="btnShowFeed">
+        <span class="icon"><svg viewBox="0 0 24 24" class="i"><path fill="url(#g-pink)" d="M12 2l3 7h7l-5.5 4.1L18 21l-6-4-6 4 1.5-7.9L2 9h7z"/></svg></span>
+        Eventos de Alimentación
+      </button>
+      <button class="btn ghost" id="btnAvgHour">
+        <span class="icon"><svg viewBox="0 0 24 24" class="i"><path fill="url(#g-purple)" d="M12 7v5l4 2-.75 1.3L11 12V7h1zM12 1a11 11 0 1011 11A11 11 0 0012 1z"/></svg></span>
+        Promediar por hora
+      </button>
+    
+      <button class="btn ghost" id="btnAvgDay">
+        <span class="icon"><svg viewBox="0 0 24 24" class="i"><path fill="url(#g-green)" d="M4 19h16v2H4zM5 4h2v12H5zm4 4h2v8H9zm4-3h2v11h-2zm4 5h2v6h-2z"/></svg></span>
+        Promedio diario
+      </button>
+      <button class="btn ghost" id="btnBandHour">
+        <span class="icon"><svg viewBox="0 0 24 24" class="i"><path fill="url(#g-purple)" d="M3 17l4-4 4 4 4-4 4 4v2H3z"/></svg></span>
+        Banda min–max (hora)
+      </button>
+  </nav>
+</header>
+
+  <main class="container">
+    <section class="filters glass">
+      <div id="alertWater" class="alert hidden" role="alert" aria-live="polite"></div>
+      <div class="badge-row">
+        <div class="metric temp">
+          <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-orange)" d="M6 2v11.09A7 7 0 1013 21V2H6z"/></svg>
+          <div>
+            <div class="label">Temp aire</div>
+            <div class="value" id="kpiTemp">--</div>
+          </div>
+        </div>
+        <div class="metric hum">
+          <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-blue)" d="M12 2S5 10 5 14a7 7 0 0014 0c0-4-7-12-7-12z"/></svg>
+          <div>
+            <div class="label">Humedad</div>
+            <div class="value" id="kpiHum">--</div>
+          </div>
+        </div>
+        <div class="metric water">
+          <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-green)" d="M12 2S5 10 5 14a7 7 0 0014 0c0-4-7-12-7-12z"/></svg>
+          <div>
+            <div class="label">Temp agua</div>
+            <div class="value" id="kpiWater">--</div>
+          </div>
+        </div>
+        <div class="metric feed">
+          <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-pink)" d="M12 2l3 7h7l-5.5 4.1L18 21l-6-4-6 4 1.5-7.9L2 9h7z"/></svg>
+          <div>
+            <div class="label">Alimentaciones hoy</div>
+            <div class="value" id="kpiFeed">--</div>
+          </div>
+        </div>
+        <div class="metric time">
+          <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-purple)" d="M12 1a11 11 0 1011 11A11 11 0 0012 1zm1 6v5l4 2-.75 1.3L11 12V7h2z"/></svg>
+          <div>
+            <div class="label">Última lectura</div>
+            <div class="value" id="kpiTime">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="waterAlert" class="alert hidden"></div>
+      <div class="filter-grid">
+        <label>Año
+          <select id="fYear"><option value="">Todos</option></select>
+        </label>
+        <label>Mes
+          <select id="fMonth"><option value="">Todos</option></select>
+        </label>
+        <label>Día
+          <select id="fDay"><option value="">Todos</option></select>
+        </label>
+        <label>Hora
+          <select id="fHour"><option value="">Todas</option></select>
+        </label>
+        <label>Minuto
+          <select id="fMinute"><option value="">Todos</option></select>
+        </label>
+        <div class="filter-actions">
+          <button class="btn primary" id="applyFilters">
+            <svg viewBox="0 0 24 24" class="i"><path fill="white" d="M21 7l-1.41-1.41L9 16.17l-4.59-4.59L3 13l6 6z"/></svg>
+            Aplicar
+          </button>
+          <button class="btn" id="resetFilters">
+            <svg viewBox="0 0 24 24" class="i"><path fill="white" d="M12 6V3L8 7l4 4V8a4 4 0 014 4 4 4 0 01-7.33 2.4l-1.45 1.45A6 6 0 1012 6z"/></svg>
+            Reiniciar
+          </button>
+          <button class="btn outline" id="showAll">
+            <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-green)" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5S21.27 16.39 23 12c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 115-5 5 5 0 01-5 5z"/></svg>
+            Todo
+          </button>
+          <button class="btn outline" id="last24">
+            <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-purple)" d="M12 8v5l3 3 1.5-1.5L13 12V8zM12 1a11 11 0 1011 11A11 11 0 0012 1z"/></svg>
+            Últimas 24h
+          </button>
+          <button class="btn outline" id="today">
+            <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-orange)" d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zm0 14H5V10h14z"/></svg>
+            Hoy
+          </button>
+        
+    
+<div id="thresholdsBox" class="thresholds">
+  <label>Umbral agua (mín °C)
+    <input id="thMin" type="number" step="0.1" placeholder="Mín" />
+  </label>
+  <label>Umbral agua (máx °C)
+    <input id="thMax" type="number" step="0.1" placeholder="Máx" />
+  </label>
+  <label>Modo de alerta
+    <select id="thMode">
+      <option value="outside">Fuera del rango</option>
+      <option value="below">Solo por debajo</option>
+      <option value="above">Solo por encima</option>
+    </select>
+  </label>
+  <div class="th-actions">
+    <button class="btn success" id="thSave">
+      <svg viewBox="0 0 24 24" class="i"><path fill="white" d="M9 16.17L4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      Guardar umbrales
+    </button>
+    <button class="btn outline" id="thReset">
+      <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-orange)" d="M12 6V3L8 7l4 4V8a4 4 0 014 4 4 4 0 01-7.33 2.4l-1.45 1.45A6 6 0 1012 6z"/></svg>
+      Restablecer
+    </button>
+  </div>
+  <div id="thError" class="th-error" style="display:none"></div>
+</div>
+<div class="notify-actions" style="margin-top:8px">
+      <button class="btn outline" id="btnTestNotify">
+        <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-green)" d="M12 22a10 10 0 110-20 10 10 0 010 20zm-1-7.41l6.3-6.3 1.41 1.41L11 17.41l-4.71-4.7 1.41-1.41L11 15.59z"/></svg>
+        Probar notificación
+      </button>
+    </div>
+  </div>
+</section>
+
+    <section class="chart glass">
+      <h3 class="chart-title">Señales en tiempo / por hora</h3>
+      <canvas id="chart"></canvas>
+    
+</section>
+    <section class="chart glass">
+      <h3 class="chart-title">Promedio diario (con min–max)</h3>
+      <canvas id="chartDaily"></canvas>
+    </section>
+    <section class="glass log">
+      <div class="log-header">
+        <h3 class="chart-title" style="margin:0">Historial de alertas</h3>
+        <div class="log-actions">
+          <button class="btn outline" id="clearLog">
+            <svg viewBox="0 0 24 24" class="i"><path fill="url(#g-pink)" d="M6 19a2 2 0 002 2h8a2 2 0 002-2V7H6zm12-12V5h-3.5l-1-1h-3l-1 1H6v2z"/></svg>
+            Limpiar
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="log-table" id="alertLog">
+          <thead>
+            <tr><th>Fecha/Hora</th><th>Nivel</th><th>Mensaje</th><th>Valor (°C)</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>Creado por: Francisco Pinto Aravena — franciscoandresp@gmail.com</div>
+    <div>© <span class="year"></span> Queda prohibida la copia, redistribución o adaptación sin autorización.</div>
+    <div>© Todos los derechos reservados.</div>
+  </footer>
+</body>
+</html>
